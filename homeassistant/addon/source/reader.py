@@ -22,13 +22,37 @@ def snapshot(raw, file_mtime, now):
     status_entry = next(((i, line) for i, line in reversed(list(enumerate(lines, 1))) if 'STATUS mounted=' in line), (0, ''))
     status_line, status = status_entry
     file_age = max(0, now - file_mtime)
-    healthy = file_age <= 25 and all(word in status for word in
-        ('mounted=1', 'rx_errors=0', 'rx_rearm_failed=0', 'log perdus=0'))
+    healthy = 0 <= now - file_mtime <= 25 and all(re.search(re.escape(word) + r'(?:\s|$)', status) for word in
+        ('mounted=1', 'rx_errors=0', 'rx_rearm_failed=0'))
     current_stream = parsed['streams'] - 1
     latest_boundary = max((b['line'] for b in parsed['boundaries']), default=0)
     status_tick = re.match(r'\[\s*(\d+)\]', status)
     status_recent = bool(status_tick and ticks and 0 <= ticks[-1] - int(status_tick[1]) <= 25000)
-    healthy = healthy and status_line > latest_boundary and status_recent
+    # Firmware loss counter is cumulative: the collector being offline can
+    # increase it without corrupting any report received after reconnection.
+    # Require two current-session STATUS samples with a stable counter, then
+    # accept only frames after that stable interval began. A new increase (or
+    # reset) invalidates earlier frames until a new complete report arrives.
+    loss_samples = []
+    for number, line in enumerate(lines, 1):
+        if number > latest_boundary and 'STATUS mounted=' in line:
+            match = re.search(r'log perdus=(\d+)(?:\s|$)', line)
+            if match:
+                loss_samples.append((number, int(match[1])))
+            else:
+                loss_samples.append((number, None))
+    stable_start = None
+    if len(loss_samples) >= 2 and loss_samples[-1][1] is not None:
+        latest_loss = loss_samples[-1][1]
+        stable = []
+        for sample in reversed(loss_samples):
+            if sample[1] != latest_loss:
+                break
+            stable.append(sample)
+        if len(stable) >= 2:
+            stable_start = stable[-1][0]
+    healthy = (healthy and status_line > latest_boundary and status_recent
+               and stable_start is not None)
     active = frames[-1] if frames else None
     active_valid = bool(active and active['stream'] == current_stream and active['line'] > latest_boundary)
     out = {
@@ -42,7 +66,7 @@ def snapshot(raw, file_mtime, now):
     for opcode, frame in latest_pages.items():
         same_session = frame['stream'] == current_stream and frame['line'] > latest_boundary
         age = (ticks[-1] - frame['uptime']) / 1000 + file_age if ticks and same_session else None
-        fresh = bool(healthy and same_session and age is not None and 0 <= age <= 60
+        fresh = bool(healthy and same_session and frame['line'] > stable_start and age is not None and 0 <= age <= 60
                      and not any(e['line'] >= frame['line'] for e in parsed['errors']))
         is_active = active_valid and opcode == active['opcode']
         page = {

@@ -103,16 +103,20 @@ def capture_health() -> dict:
     capture = _find_capture()
     if not capture.exists():
         raise RuntimeError('Aucun collecteur actif — envoi bloqué')
-    age = time.time() - capture.stat().st_mtime
-    if not 0 <= age < 75:
+    from reader import snapshot
+    with capture.open('rb') as stream:
+        stat = os.fstat(stream.fileno())
+        start = max(0, stat.st_size - 250000)
+        stream.seek(start)
+        if start:
+            stream.readline()
+        raw = stream.read(250000)
+    now = time.time()
+    age = now - stat.st_mtime
+    if not 0 <= age <= 25:
         raise RuntimeError('Capture trop ancienne — envoi bloqué')
-    with capture.open('rb') as s:
-        s.seek(max(0, capture.stat().st_size - 30000))
-        lines = s.read().decode(errors='replace').splitlines()
-    status = next((x for x in reversed(lines) if 'STATUS mounted=' in x), '')
-    for field in ('mounted=1', 'rx_errors=0', 'rx_rearm_failed=0', 'log perdus=0'):
-        if not re.search(re.escape(field) + r'(?:\s|$)', status):
-            raise RuntimeError('Banc non validé — envoi bloqué')
+    if not snapshot(raw, stat.st_mtime, now)['capture_healthy']:
+        raise RuntimeError('Banc non validé — envoi bloqué')
     return {'capture_age_s': round(age, 1), 'rx_ok': True, 'file': capture.name, 'dir': capture.parent.name}
 
 

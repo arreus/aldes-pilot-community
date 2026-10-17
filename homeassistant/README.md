@@ -13,7 +13,7 @@ Deux parcours : **HA OS avec add-on** ou **Home Assistant Container avec un cont
 
 ## Home Assistant OS
 
-Le dépôt étant privé, l’ajout public d’un dépôt d’add-ons ne convient pas encore. Téléchargez le projet avec votre accès GitHub, puis copiez **le dossier `homeassistant/addon` entier** vers `/addons/aldes_pilot` sur la machine HA (Samba/SSH). Il contient son Dockerfile, sa configuration et les sources générées.
+Le parcours add-on reste expérimental. Téléchargez le projet depuis GitHub, puis copiez **le dossier `homeassistant/addon` entier** vers `/addons/aldes_pilot` sur la machine HA (Samba/SSH). Il contient son Dockerfile, sa configuration et les sources générées.
 
 1. Rechargez la boutique d’apps/add-ons ; installez **Aldes Pilot** dans les applications locales. La première construction télécharge Python et les dépendances ; **elle n’exige pas le SDK Pico**.
 2. Dans la configuration de l’add-on, renseignez `pico_host` et `control_token`. Ces options sont privées.
@@ -72,3 +72,34 @@ Sur l’installation de référence, l’API confirme HA Container 2026.6.4 et M
 ### Latence et disponibilité REST
 
 La lecture reste visible pendant une commande ou le délai de 45 secondes entre deux envois, tant que le rapport est frais. Ce délai interdit seulement une nouvelle commande ; il ne retarde pas volontairement l’affichage. Le capteur binaire « Aldes Pilot Commandes disponibles » expose cette distinction. Une nouvelle commande pendant ce délai est refusée explicitement, sans mise en file. La cadence PAC observée est proche de 20 secondes, puis REST ajoute jusqu’à environ cinq secondes de polling en fonctionnement normal. Ce n’est pas un délai maximal garanti en cas de reconnexion ou de rapport manquant.
+
+
+## Diagnostic après coupure
+
+Après redémarrage du Pi ou retour du réseau, le collecteur se reconnecte et
+établit une nouvelle référence du compteur cumulatif `log perdus`. Deux STATUS
+stables et un rapport complet récent sont nécessaires. L’interface reste
+indisponible pendant cette vérification ; elle ne réutilise pas les valeurs
+antérieures à la reconnexion. Aucune commande utilisateur n’est rejouée.
+
+- Vérifier que le compagnon tourne (`docker compose ps`) et qu’un seul collecteur
+  utilise le port de logs du Pico.
+- Vérifier l’adresse du Pico dans la configuration privée et sa joignabilité depuis
+  l’hôte. Une réservation DHCP ou une adresse fixe cohérente évite les changements
+  d’adresse ; ne pas modifier le réseau sans en vérifier les paramètres.
+- Examiner `private/usbguard.json`, `private/usbguard-events.jsonl` et
+  `private/recovery.json` localement. Ils restent hors Git. `usbguard` ne rallume
+  l’USB que si le STATUS indique `usb=0`, sans interrompre un TX PENDING, et avec
+  trois essais maximum par heure. Un réseau absent est retenté au tour suivant.
+- Vérifier `sensor.aldes_pilot_rapport` à `online`, les valeurs réellement relues
+  et le capteur « Commandes disponibles ». `ready` dans recovery seul ne prouve
+  pas que la lecture est fraîche.
+
+Pour mettre à jour les sources du compagnon : `git pull --ff-only`, puis
+`docker compose up -d --build` depuis `homeassistant/docker`. Conserver les
+répertoires privés persistants et une image de retour arrière. Les tests Python
+se lancent depuis la racine avec `python3 -m unittest discover -v`.
+
+La reprise après reconnexion du compagnon a été vérifiée sur l’installation de
+référence. Aucun nouveau redémarrage complet du Pi ni flash du Pico n’a été
+réalisé pour qualifier ce correctif.

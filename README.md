@@ -46,10 +46,26 @@ Le jeton du bridge doit contenir 64 caractères hexadécimaux minuscules. Garder
 
 La durée de vie du collecteur est indépendante de celle du serveur web. Si le collecteur s’arrête, la page passe en indisponible. Sur macOS, vérifier les permissions Réseau local dans le contexte réel de lancement : un LaunchAgent ne suffit pas à garantir l’accès.
 
+## Reprise après arrêt de l’hôte
+
+Le compteur firmware `log perdus` est cumulatif : il peut augmenter pendant que
+le Pi ou le collecteur est arrêté. Une ancienne perte ne bloque plus la lecture
+indéfiniment. Après reconnexion, deux lignes STATUS de la session courante doivent
+montrer un compteur stable ; un rapport complet reçu après le début de cette
+stabilité permet de retrouver l’état disponible. Une nouvelle perte invalide les
+anciens rapports jusqu’à stabilisation et réception d’un nouveau rapport valide.
+La lecture et la garde d’envoi partagent cette vérification.
+
+Le superviseur lance aussi `usbguard.py`. Toutes les 30 secondes, sous le verrou
+partagé avec les commandes, il vérifie le STATUS authentifié du Pico. Si `usb=0`
+et qu’aucun envoi n’est en attente, il peut envoyer `USBON` (trois tentatives par
+heure au maximum, budget persistant). Il ne change aucun réglage et ne rejoue
+aucune commande utilisateur. Voir [le diagnostic HA](homeassistant/README.md#diagnostic-après-coupure).
+
 ## Tests sans appareil
 
 ```sh
-python3 -m unittest test_reader test_pilot test_recovery -v
+python3 -m unittest discover -v
 ```
 
 Les tests couvrent le réassemblage, la somme, les ruptures de session, la fraîcheur, la rotation/troncature, les changements extérieurs sans écriture et les masques des commandes.
@@ -94,7 +110,7 @@ La PAC de référence présente un décalage entre date et jour de semaine. Les 
 
 ## Avant diffusion
 
-Le dossier communautaire est une sélection de sources anonymisées, sans secrets ni captures privées. La diffusion reste privée pendant la qualification. Licence Apache-2.0 pour le code original ; conserver LICENSE, NOTICE et les notices des composants tiers lors des redistributions applicables. Des essais sur d’autres installations restent nécessaires.
+Le dossier communautaire est une sélection de sources anonymisées, sans secrets ni captures privées. Le dépôt public conserve le statut expérimental décrit ci-dessus. Licence Apache-2.0 pour le code original ; conserver LICENSE, NOTICE et les notices des composants tiers lors des redistributions applicables. Des essais sur d’autres installations restent nécessaires.
 
 
 ## Reprise automatique ajoutée

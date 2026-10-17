@@ -18,7 +18,7 @@ class ReaderTests(unittest.TestCase):
         # Deliberately unset clock: this must not suppress valid setpoints.
         self.frame[-2] = 254
         self.frame[-1] = (-sum(self.frame)) % 256
-        self.head = '[collector] synthetic start\n'+chunk(1, 1000, self.frame[:64])
+        self.head = '[collector] synthetic start\n'+status(900)+chunk(1, 1000, self.frame[:64])
 
     def read(self, tail='', now=1800000000):
         return snapshot((self.head+tail+status(1002)).encode(), 1800000000, now)
@@ -54,7 +54,10 @@ class ReaderTests(unittest.TestCase):
         state = snapshot(raw.encode(), 1800000000, 1800000000)
         self.assertFalse(state['capture_healthy'])
         self.assertFalse(state['pages']['21']['available'])
-        recovered = snapshot((raw+status(1003)).encode(), 1800000000, 1800000000)
+        waiting = snapshot((raw+status(1003)).encode(), 1800000000, 1800000000)
+        self.assertFalse(waiting['pages']['21']['available'])
+        raw += status(1003)+chunk(3,1004,self.frame[:64])+chunk(4,1005,self.frame[64:])+status(1006)
+        recovered = snapshot(raw.encode(),1800000000,1800000000)
         self.assertTrue(recovered['pages']['21']['available'])
 
     def test_old_status_not_reused_during_continuous_raw(self):

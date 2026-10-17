@@ -9,7 +9,7 @@ class IntegrationTests(unittest.TestCase):
  def frame(self,air=0,ecs=1,k1=2200):
   f=bytearray(90);f[:5]=bytes.fromhex('fffd5aff21');f[13:15]=k1.to_bytes(2,'little');f[81]=air;f[82]=ecs;f[-2]=254;f[-1]=-sum(f)%256;return f
  def log(self,path,frame):
-  path.write_text('[collector] test\n'+chunk(1,1000,frame[:64])+chunk(2,1001,frame[64:])+status(1002))
+  path.write_text('[collector] test\n'+status(900)+chunk(1,1000,frame[:64])+chunk(2,1001,frame[64:])+status(1002))
  def test_external_changes_and_no_network(self):
   with tempfile.TemporaryDirectory() as d:
    path=Path(d)/'capture';self.log(path,self.frame())

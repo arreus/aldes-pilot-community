@@ -84,3 +84,38 @@ Tests complémentaires : simulation de coupure après effacement et pendant prog
 ## Affichage HA pendant le délai entre commandes
 
 Les templates REST rendaient les entités indisponibles pendant les 45 secondes de cooldown. Correction : disponibilité de lecture fondée sur un rapport frais ; garde d’envoi distincte conservée. Cinq scénarios vérifiés avec Jinja dans le conteneur HA (cooldown, envoi actif, reprise, lecture absente, état prêt). Configuration complète vérifiée puis templates rechargés sans redémarrage HA ni commande PAC. Mesure du délai visible après une nouvelle commande utilisateur encore à effectuer.
+
+
+## Pertes de logs pendant l’arrêt de l’hôte — 17 octobre 2026
+
+Après arrêt et redémarrage de l’hôte, le Pico resté alimenté continuait à émettre
+des rapports 0x21 complets, à somme valide. Le compteur cumulatif `log perdus`
+était passé à 283. Exiger sa valeur absolue à zéro rendait la lecture et les
+commandes indisponibles même après reconnexion.
+
+Le lecteur exige maintenant deux STATUS de la session courante avec un compteur
+stable et un rapport complet postérieur au début de cette stabilité. Une hausse,
+une remise à zéro, un compteur absent ou une rupture de session invalident la
+référence précédente. Les contrôles de fraîcheur, somme, page active, montage
+USB et erreurs RX sont conservés. `capture_health()` utilise ce même lecteur ;
+la garde d’envoi vérifie également l’ancienneté du fichier.
+
+Tests synthétiques : pertes historiques, pertes nouvelles, retour après
+stabilisation, reconnexion, compteur réinitialisé/absent, STATUS incomplet,
+fichier périmé ou daté dans le futur, valeurs STATUS exactes, USB non monté et
+erreurs RX. Une simulation recrée Pilot à partir du journal persistant, coupe
+la lecture, augmente le compteur puis rétablit la capture : retour disponible
+sans accès réseau, sans modification du journal ni rejeu de commande.
+
+Le garde `usbguard.py`, déjà en service sur l’installation de référence, est
+inclus dans le superviseur et le packaging. Sa décision est testée sans matériel :
+USB actif, USB éteint, TX PENDING, STATUS absent, budget horaire et expiration.
+Il n’envoie que STATUS et éventuellement USBON, jamais ARM/SEND ni réglage PAC.
+
+Sur le système réel après remplacement du compagnon : rapport HA online,
+commandes disponibles, quatre températures candidates et jauge ECS de nouveau
+lisibles ; plusieurs rapports successifs frais, recovery ready. La reprise de
+connexion du compagnon est vérifiée. Une nouvelle coupure complète du Pi/PAC et
+la compatibilité du firmware générique sur d’autres installations restent hors
+de cette qualification. Aucun réglage de chauffage ni horloge PAC modifié lors
+de cette vérification.

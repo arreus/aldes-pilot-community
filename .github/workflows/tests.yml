@@ -1,0 +1,24 @@
+name: Offline regressions
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Test reader, command guards and offline recovery
+        run: python -m unittest discover -v
+      - name: Verify generated add-on sources
+        run: |
+          python homeassistant/package.py
+          git diff --exit-code -- homeassistant/addon
