@@ -75,6 +75,7 @@ def snapshot(raw, file_mtime, now):
             'same_session': same_session, 'fresh': fresh,
             'active': bool(is_active), 'available': bool(fresh and is_active),
             'sha256': hashlib.sha256(bytes.fromhex(frame['hex'])).hexdigest(),
+            'hex': frame['hex'],
         }
         if opcode == '21' and frame['length'] == 90:
             data = bytes.fromhex(frame['hex'])
