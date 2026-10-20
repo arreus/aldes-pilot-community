@@ -194,6 +194,7 @@ ZONES.forEach(([z,n,k])=>{
   c.innerHTML=`<h3>${n}<span>${k}</span></h3>
   <div class="temp"><div class="num" id="n${z}">—</div>
   <div class="pm"><button data-d="-0.5">−</button><button data-d="0.5">+</button></div></div>
+    <div class="amb" id="amb${z}" style="font-size:13px;color:var(--mut);margin:-4px 0 4px 2px">Ambiance : —</div>
   <button class="send" id="s${z}">Envoyer</button>
   <div class="st" id="st${z}"><i></i><span>Aucune commande envoyée</span></div>`;
   $('#rooms').appendChild(c);
@@ -230,6 +231,8 @@ function render(){
   // rooms
   ZONES.forEach(([z])=>{const zs=S.zones[z];const shown=local[z]??zs.actual;
     $('#n'+z).innerHTML=shown==null?'—':fmt(shown);
+    const ambVal=zs.temperature;
+    $('#amb'+z).textContent='Ambiance : '+(ambVal!=null?`${ambVal.toFixed(1).replace('.',',')} °C`:'—');
     const dirty=local[z]!=null&&local[z]!==zs.actual;
     const sb=$('#s'+z); const thisBusy=busy&&S.busy?.kind==='setpoint'&&S.busy.zone===z;
     sb.disabled=lock||!dirty; sb.className='send'+(thisBusy?' busy':'')+(dirty&&!lock?' dirty':'');

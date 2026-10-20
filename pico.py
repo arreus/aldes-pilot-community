@@ -263,7 +263,9 @@ class Pilot:
         observed = read_state(_find_capture())
         decoded = observed.get('decoded') or {}
         for z, item in zones.items():
-            item['actual'] = next((v['setpoint_c'] for v in decoded.get('zones', []) if v['zone'] == f'K{z}'), None)
+            zone_info = next((v for v in decoded.get('zones', []) if v['zone'] == f'K{z}'), {})
+            item['actual'] = zone_info.get('setpoint_c')
+            item['temperature'] = zone_info.get('temperature_candidate_c')
         air['actual'] = decoded.get('air', {}).get('raw')
         ecs['actual'] = decoded.get('ecs', {}).get('raw')
         for item in [*zones.values(), air, ecs]:

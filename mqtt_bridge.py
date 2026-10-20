@@ -9,12 +9,19 @@ def discovery(identity):
  rows=[]
  for key,options in [('air',AIR),('ecs',ECS)]:
   rows.append(('select',key,{'name':'Mode '+key.upper(),'options':options,'optimistic':False}))
- for zone in range(1,7):rows.append(('number','k'+str(zone),{'name':f'Consigne K{zone}','min':16,'max':30,'step':.5,'mode':'box','unit_of_measurement':'°C','optimistic':False}))
+  for zone in range(1, 7):
+   rows.append(('number', 'k' + str(zone),
+                {'name': f'Consigne K{zone}', 'min': 16, 'max': 30, 'step': .5, 'mode': 'box',
+                 'unit_of_measurement': '°C', 'optimistic': False}))
+   rows.append(('sensor', f'k{zone}_temp',
+                {'name': f'Température K{zone}', 'unit_of_measurement': '°C', 'device_class': 'temperature',
+                 'state_class': 'measurement'}))
  rows.append(('button','vacation_clear',{'name':'Annuler vacances / hors gel','payload_press':'CLEAR'}))
  result={}
  for component,key,extra in rows:
-  cfg={'unique_id':identity+'_'+key,'device':device,'availability_topic':base+'/availability','command_topic':base+'/'+key+'/set','qos':0,'retain':False,**extra}
+  cfg={'unique_id':identity+'_'+key,'device':device,'availability_topic':base+'/availability','qos':0,'retain':False,**extra}
   if component!='button':cfg['state_topic']=base+'/'+key+'/state'
+  if component in ('select','number','button'):cfg['command_topic']=base+'/'+key+'/set'
   result[f'homeassistant/{component}/{identity}/{key}/config']=cfg
  return result
 
@@ -41,6 +48,9 @@ def observed(s):
   v=s['zones'][str(z)]['actual']
   if not isinstance(v,(int,float)) or not math.isfinite(v):return None
   out['k'+str(z)]=str(v)
+  t=s['zones'][str(z)].get('temperature')
+  if isinstance(t,(int,float)) and math.isfinite(t):
+   out['k'+str(z)+'_temp']=str(t)
  return out
 
 def api(path,body=None):
