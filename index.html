@@ -157,6 +157,25 @@ button:focus-visible{outline:2px solid white;outline-offset:3px}
   <p class="lbl">Commandes envoyées</p>
   <div class="card"><div class="jr" id="jr"></div></div>
 </section>
+<section>
+  <p class="lbl">Dernière trame reçue (Rapport 0x21)</p>
+  <div class="card" style="padding:12px">
+    <div style="overflow-x:auto;max-height:480px;overflow-y:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left">
+        <thead>
+          <tr style="border-bottom:1px solid var(--line);color:var(--dim);position:sticky;top:0;background:#151924;z-index:2">
+            <th style="padding:8px 10px;width:70px">Offset</th>
+            <th style="padding:8px 10px;width:220px">Champ identifié</th>
+            <th style="padding:8px 10px;width:110px">Hex (Octet)</th>
+            <th style="padding:8px 10px">Signification</th>
+          </tr>
+        </thead>
+        <tbody id="rawFrameBody">
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
 </main>
 <div id="toast"></div>
 <div class="pinwrap" id="pinwrap"><div class="pin"><b>Code</b><input id="pinIn" inputmode="numeric" autocomplete="one-time-code"><button class="send" id="pinOk" style="width:100%">Entrer</button></div></div>
@@ -252,6 +271,121 @@ function render(){
     const what=r.kind==='vacation_clear'?'Annulation vacances / hors gel':r.kind==='setpoint'?`${S.zones[r.zone].name} → ${Number(r.value).toFixed(1).replace('.',',')} °C`:r.kind==='air'?`Ambiance → ${S.labels.air[r.value]}`:`Eau chaude → ${S.labels.ecs[r.value]}`;
     const d=document.createElement('div');d.className=r.event==='delivered'?'ok':r.event==='error'?'err':'';
     d.innerHTML=`<span>${hh(r.utc)}</span><b>${what}</b><em>${r.event==='delivered'?'transmise '+(r.elapsed_s?r.elapsed_s+' s':''):r.event==='error'?'échec':'demande'}</em>`;jr.appendChild(d)});
+
+  // raw 0x21 frame table
+  renderRawFrame(S?.observed?.raw, S?.observed?.decoded);
+}
+
+function decodeDosDateTime(v){
+  if(!v)return 'Aucune date (0)';
+  const year=1980+(v>>>25);const month=(v>>>21)&15;const day=(v>>>16)&31;
+  const hour=(v>>>11)&31;const min=(v>>>5)&63;const sec=(v&31)*2;
+  const p=n=>String(n).padStart(2,'0');
+  return `${p(day)}/${p(month)}/${year} ${p(hour)}:${p(min)}:${p(sec)}`;
+}
+
+function renderRawFrame(rawHex,decoded){
+  const tbody=$('#rawFrameBody');
+  if(!tbody)return;
+  if(!rawHex||rawHex.length!==180){
+    tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:16px;color:var(--dim)">Aucune trame reçue / PAC indisponible</td></tr>';
+    return;
+  }
+  const bytes=[];
+  for(let i=0;i<90;i++){bytes.push(parseInt(rawHex.substr(i*2,2),16));}
+
+  const u32=off=>(bytes[off]|(bytes[off+1]<<8)|(bytes[off+2]<<16)|(bytes[off+3]*0x1000000))>>>0;
+  const u16=off=>bytes[off]|(bytes[off+1]<<8);
+  const s16=off=>{const v=u16(off);return v>32767?v-65536:v;};
+
+  const vacDep=u32(5);
+  const vacRet=u32(9);
+  const clockVal=u32(77);
+
+  const depStr=decoded?.vacation?.departure||decodeDosDateTime(vacDep);
+  const retStr=decoded?.vacation?.return||decodeDosDateTime(vacRet);
+  const clockStr=decoded?.pac_clock_local||decodeDosDateTime(clockVal);
+
+  const isChecksumOk=bytes.reduce((a,b)=>a+b,0)%256===0;
+
+  let html='';
+  for(let i=0;i<90;i++){
+    const hexByte=rawHex.substr(i*2,2).toUpperCase();
+    const decByte=bytes[i];
+    let name='';
+    let meaning='';
+
+    if(i===0){name='Entête';meaning='Magic (0xFF)';}
+    else if(i===1){name='Entête';meaning='Magic (0xFD)';}
+    else if(i===2){name='Taille trame';meaning=`${decByte} octets (0x5A)`;}
+    else if(i===3){name='Entête';meaning='Magic (0xFF)';}
+    else if(i===4){name='Opcode';meaning='Rapport local (0x21)';}
+    else if(i>=5&&i<=8){
+      name='Départ vacances';
+      meaning=i===5?(vacDep===0?'Aucune date':depStr):`(suite ${depStr})`;
+    }
+    else if(i>=9&&i<=12){
+      name='Retour vacances';
+      meaning=i===9?(vacRet===0?'Aucune date (ou hors gel)':retStr):`(suite ${retStr})`;
+    }
+    else if(i>=13&&i<=24){
+      const z=Math.floor((i-13)/2)+1;
+      name=`Consigne Zone ${z} (K${z})`;
+      if(i%2===1){
+        const raw=u16(i);
+        meaning=raw===0?'0,0 °C (Sans consigne)':`${(raw/100).toFixed(1).replace('.',',')} °C`;
+      }else{
+        meaning=`(suite Consigne Zone ${z})`;
+      }
+    }
+    else if(i>=53&&i<=64){
+      const z=Math.floor((i-53)/2)+1;
+      name=`Température candidate Zone ${z} (K${z})`;
+      if(i%2===1){
+        const rawU=u16(i);
+        if(rawU===65535){
+          meaning='Non mesurée (0xFFFF)';
+        }else{
+          const val=s16(i)/100;
+          meaning=`${val.toFixed(1).replace('.',',')} °C`;
+        }
+      }else{
+        meaning=`(suite Temp. candidate Zone ${z})`;
+      }
+    }
+    else if(i>=77&&i<=80){
+      name='Horloge PAC';
+      meaning=i===77?clockStr:`(suite ${clockStr})`;
+    }
+    else if(i===81){
+      name='Mode Air';
+      meaning=S?.labels?.air?.[decByte]||AIR_MAIN.find(x=>x[0]===decByte)?.[1]||`Mode ${decByte}`;
+    }
+    else if(i===82){
+      name='Mode ECS';
+      meaning=S?.labels?.ecs?.[decByte]||ECS.find(x=>x[0]===decByte)?.[1]||`Mode ${decByte}`;
+    }
+    else if(i===88){
+      name='Fin de trame';
+      meaning='Marqueur de fin (0xFE)';
+    }
+    else if(i===89){
+      name='Somme de contrôle';
+      meaning=`Checksum ${hexByte} (${isChecksumOk?'Valide':'Invalide'})`;
+    }
+
+    const isIdentified=!!name;
+    const bgStyle=isIdentified?'background:rgba(255,255,255,0.025);':'';
+    const borderStyle='border-bottom:1px solid rgba(255,255,255,0.05);';
+
+    html+=`<tr style="${bgStyle}${borderStyle}">
+      <td style="padding:6px 10px;font-family:monospace;color:var(--dim)">${String(i).padStart(2,'0')}</td>
+      <td style="padding:6px 10px">${isIdentified?`<b style="color:var(--acc)">${name}</b>`:'<span style="color:var(--dim)">—</span>'}</td>
+      <td style="padding:6px 10px;font-family:monospace"><span style="color:var(--txt)">${hexByte}</span> <small style="color:var(--dim)">(${decByte})</small></td>
+      <td style="padding:6px 10px;color:${isIdentified?'var(--txt)':'var(--dim)'}">${meaning||decByte}</td>
+    </tr>`;
+  }
+  tbody.innerHTML=html;
 }
 
 function actualSt(el,item,label){
