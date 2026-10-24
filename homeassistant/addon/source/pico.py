@@ -281,7 +281,7 @@ class Pilot:
         except (OSError, ValueError):
             recovery = {'status': 'watching'}
         return {'recovery': recovery, 'zones': zones, 'air': air, 'ecs': ecs, 'busy': self.busy, 'available': available,
-                'observation': observed, 'observed': observed, 'vacation': decoded.get('vacation'), 'health': health, 'bench': bench, 'cooldown_s': max(0, int(self.cooldown - (time.time() - last_done))),
+                'observation': observed, 'observed': observed, 'vacation': decoded.get('vacation'), 'offsets': decoded.get('offsets'), 'health': health, 'bench': bench, 'cooldown_s': max(0, int(self.cooldown - (time.time() - last_done))),
                 'labels': {'air': AIR_MODES, 'ecs': ECS_MODES}, 'dry_run': DRY_RUN,
                 'journal': self._records()[-12:]}
 

@@ -16,6 +16,8 @@ def discovery(identity):
    rows.append(('sensor', f'k{zone}_temp',
                 {'name': f'Température K{zone}', 'unit_of_measurement': '°C', 'device_class': 'temperature',
                  'state_class': 'measurement'}))
+  for off in (73, 75, 86):
+   rows.append(('sensor', f'offset_{off}', {'name': f'Offset {off}'}))
  rows.append(('button','vacation_clear',{'name':'Annuler vacances / hors gel','payload_press':'CLEAR'}))
  result={}
  for component,key,extra in rows:
@@ -51,6 +53,12 @@ def observed(s):
   t=s['zones'][str(z)].get('temperature')
   if isinstance(t,(int,float)) and math.isfinite(t):
    out['k'+str(z)+'_temp']=str(t)
+ offsets=s.get('offsets') or s.get('observation',{}).get('decoded',{}).get('offsets',{})
+ if isinstance(offsets,dict):
+  for off in (73,75,86):
+   v=offsets.get(f'offset_{off}')
+   if isinstance(v,int):
+    out[f'offset_{off}']=str(v)
  return out
 
 def api(path,body=None):
