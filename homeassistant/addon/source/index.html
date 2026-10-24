@@ -343,7 +343,7 @@ function renderRawFrame(rawHex,decoded){
       name='Retour vacances';
       meaning=i===9?(vacRet===0?'Aucune date (ou hors gel)':retStr):`(suite ${retStr})`;
     }
-    else if(i>=13&&i<=24){
+    else if(i>=13&&i<=30){
       const z=Math.floor((i-13)/2)+1;
       name=`Consigne Zone ${z} (K${z})`;
       if(i%2===1){
@@ -353,9 +353,9 @@ function renderRawFrame(rawHex,decoded){
         meaning=`(suite Consigne Zone ${z})`;
       }
     }
-    else if(i>=53&&i<=64){
+    else if(i>=53&&i<=70){
       const z=Math.floor((i-53)/2)+1;
-      name=`Température candidate Zone ${z} (K${z})`;
+      name=`Température Zone ${z} (K${z})`;
       if(i%2===1){
         const rawU=u16(i);
         if(rawU===65535){
@@ -367,6 +367,9 @@ function renderRawFrame(rawHex,decoded){
       }else{
         meaning=`(suite Temp. candidate Zone ${z})`;
       }
+    }
+    else if(i===73){
+      name='niveau eau chaude'
     }
     else if(i>=77&&i<=80){
       name='Horloge PAC';
