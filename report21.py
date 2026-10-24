@@ -17,6 +17,7 @@ def decode21(data):
    'temperature_validation':'Layout candidate; physical zone/value confirmation pending'})
  return {'zones':zones,'air':{'raw':data[81],'label':AIR.get(data[81],'Mode non validé')},
   'ecs':{'raw':data[82],'label':ECS.get(data[82],'Mode non validé')},
+  'hot_water_level': data[73],
   'vacation':{'departure':decode_date(data[5:9]),'return':decode_date(data[9:13]),'present':any(data[5:13])},
   'offsets': {'offset_73': data[73], 'offset_75': data[75], 'offset_86': data[86]},
   'frame_sha256':hashlib.sha256(data).hexdigest()}

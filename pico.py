@@ -280,7 +280,7 @@ class Pilot:
             recovery = {k: recovery.get(k) for k in ('status', 'reason', 'last_action')}
         except (OSError, ValueError):
             recovery = {'status': 'watching'}
-        return {'recovery': recovery, 'zones': zones, 'air': air, 'ecs': ecs, 'busy': self.busy, 'available': available,
+        return {'recovery': recovery, 'zones': zones, 'air': air, 'ecs': ecs, 'hot_water_level': decoded.get('hot_water_level'), 'busy': self.busy, 'available': available,
                 'observation': observed, 'observed': observed, 'vacation': decoded.get('vacation'), 'offsets': decoded.get('offsets'), 'health': health, 'bench': bench, 'cooldown_s': max(0, int(self.cooldown - (time.time() - last_done))),
                 'labels': {'air': AIR_MODES, 'ecs': ECS_MODES}, 'dry_run': DRY_RUN,
                 'journal': self._records()[-12:]}

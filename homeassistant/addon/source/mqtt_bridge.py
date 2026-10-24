@@ -16,7 +16,8 @@ def discovery(identity):
    rows.append(('sensor', f'k{zone}_temp',
                 {'name': f'Température K{zone}', 'unit_of_measurement': '°C', 'device_class': 'temperature',
                  'state_class': 'measurement'}))
-  for off in (73, 75, 86):
+  rows.append(('sensor', 'hot_water_level', {'name': 'Niveau d\'eau chaude', 'unit_of_measurement': '%'}))
+  for off in (73, 86):
    rows.append(('sensor', f'offset_{off}', {'name': f'Offset {off}'}))
  rows.append(('button','vacation_clear',{'name':'Annuler vacances / hors gel','payload_press':'CLEAR'}))
  result={}
@@ -53,9 +54,16 @@ def observed(s):
   t=s['zones'][str(z)].get('temperature')
   if isinstance(t,(int,float)) and math.isfinite(t):
    out['k'+str(z)+'_temp']=str(t)
+ hw = s.get('hot_water_level') if s.get('hot_water_level') is not None else s.get('observation', {}).get('decoded',
+                                                                                                         {}).get(
+  'hot_water_level')
+ if hw is None:
+  hw = (s.get('offsets') or s.get('observation', {}).get('decoded', {}).get('offsets', {}) or {}).get('offset_73')
+ if isinstance(hw, int):
+  out['hot_water_level'] = str(hw)
  offsets=s.get('offsets') or s.get('observation',{}).get('decoded',{}).get('offsets',{})
  if isinstance(offsets,dict):
-  for off in (73,75,86):
+  for off in (73,86):
    v=offsets.get(f'offset_{off}')
    if isinstance(v,int):
     out[f'offset_{off}']=str(v)

@@ -6,6 +6,9 @@ class MQTTTests(unittest.TestCase):
   for topic,c in d.items():
    self.assertFalse(c['retain']);self.assertEqual(c['qos'],0);self.assertEqual(c['availability_topic'],'aldes_pilot/test/availability')
    if '/button/' not in topic and '/sensor/' not in topic:self.assertFalse(c['optimistic']);self.assertIn('state_topic',c)
+  self.assertIn('homeassistant/sensor/test/hot_water_level/config', d)
+  self.assertIn('homeassistant/sensor/test/offset_75/config', d)
+  self.assertIn('homeassistant/sensor/test/offset_86/config', d)
  def test_modes_and_programs(self):
   for i,label in enumerate(AIR):self.assertEqual(parse_command('air',label.encode()),('/api/air',{'mode':i}))
   for i,label in enumerate(ECS):self.assertEqual(parse_command('ecs',label.encode()),('/api/ecs',{'mode':i}))
@@ -13,10 +16,9 @@ class MQTTTests(unittest.TestCase):
   for key,payload,retained in [('air',b'Arr\xc3\xaat',True),('k1',b'nan',False),('k2',b'31',False),('k3',b'20.1',False),('k7',b'22',False),('air',b'9',False),('vacation_clear',b'ON',False)]:
    with self.assertRaises(ValueError):parse_command(key,payload,retained)
  def test_states_are_actual_only(self):
-  s = {'available': True, 'air': {'actual': 5, 'requested': 0}, 'ecs': {'actual': 1},
-       'zones': {str(z): {'actual': 24 if z == 1 else 22, 'temperature': 22.1} for z in range(1, 7)}}
+  s={'available':True,'air':{'actual':5,'requested':0},'ecs':{'actual':1},'zones':{str(z):{'actual':24 if z==1 else 22,'temperature':22.1} for z in range(1,7)},'hot_water_level':75,'offsets':{'offset_73':75,'offset_75':34,'offset_86':56}}
   self.assertEqual(observed(s)['air'], 'Clim Confort')
-  self.assertEqual(observed(s)['k1'], '24')
+  self.assertEqual(observed(s)['hot_water_level'],'75');self.assertEqual(observed(s)['offset_75'],'34');self.assertEqual(observed(s)['offset_86'],'56')
   self.assertEqual(observed(s)['k1_temp'], '22.1')
   self.assertEqual(observed(s)['k6'], '22')
   s['available']=False;self.assertIsNone(observed(s));s['available']=True;s['recovery']={'status':'recovering'};self.assertIsNone(observed(s))
