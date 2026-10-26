@@ -11,7 +11,7 @@ def discovery(identity):
   rows.append(('select',key,{'name':'Mode '+key.upper(),'options':options,'optimistic':False}))
   for zone in range(1, 7):
    rows.append(('number', 'k' + str(zone),
-                {'name': f'Consigne K{zone}', 'min': 2, 'max': 31, 'step': .5, 'mode': 'box',
+                {'name': f'Consigne K{zone}', 'min': 0, 'max': 31, 'step': .5, 'mode': 'box',
                  'unit_of_measurement': '°C', 'optimistic': False}))
    rows.append(('sensor', f'k{zone}_temp',
                 {'name': f'Température K{zone}', 'unit_of_measurement': '°C', 'device_class': 'temperature',
