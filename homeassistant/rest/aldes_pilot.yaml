@@ -175,8 +175,8 @@
           "unique_id": "aldes_pilot_rest_k1",
           "availability": "{{ is_state('sensor.aldes_pilot_rapport', 'online') }}",
           "optimistic": false,
-          "min": 16,
-          "max": 30,
+          "min": 0,
+          "max": 31,
           "step": 0.5,
           "unit_of_measurement": "°C",
           "state": "{{ ((state_attr('sensor.aldes_pilot_rapport', 'zones') or {}).get('1') or {}).get('actual') }}",
@@ -230,8 +230,8 @@
           "unique_id": "aldes_pilot_rest_k2",
           "availability": "{{ is_state('sensor.aldes_pilot_rapport', 'online') }}",
           "optimistic": false,
-          "min": 16,
-          "max": 30,
+          "min": 0,
+          "max": 31,
           "step": 0.5,
           "unit_of_measurement": "°C",
           "state": "{{ ((state_attr('sensor.aldes_pilot_rapport', 'zones') or {}).get('2') or {}).get('actual') }}",
@@ -285,8 +285,8 @@
           "unique_id": "aldes_pilot_rest_k3",
           "availability": "{{ is_state('sensor.aldes_pilot_rapport', 'online') }}",
           "optimistic": false,
-          "min": 16,
-          "max": 30,
+          "min": 0,
+          "max": 31,
           "step": 0.5,
           "unit_of_measurement": "°C",
           "state": "{{ ((state_attr('sensor.aldes_pilot_rapport', 'zones') or {}).get('3') or {}).get('actual') }}",
@@ -340,8 +340,8 @@
           "unique_id": "aldes_pilot_rest_k4",
           "availability": "{{ is_state('sensor.aldes_pilot_rapport', 'online') }}",
           "optimistic": false,
-          "min": 16,
-          "max": 30,
+          "min": 0,
+          "max": 31,
           "step": 0.5,
           "unit_of_measurement": "°C",
           "state": "{{ ((state_attr('sensor.aldes_pilot_rapport', 'zones') or {}).get('4') or {}).get('actual') }}",
@@ -390,67 +390,68 @@
             }
           ]
         },
-        "name": "Aldes Pilot Consigne K5",
-        "unique_id": "aldes_pilot_rest_k5",
-        "availability": "{{ is_state('sensor.aldes_pilot_rapport', 'online') }}",
-        "optimistic": false,
-        "min": 16,
-        "max": 30,
-        "step": 0.5,
-        "unit_of_measurement": "°C",
-        "state": "{{ ((state_attr('sensor.aldes_pilot_rapport', 'zones') or {}).get('5') or {}).get('actual') }}",
-        "set_value": [
-          {
-            "if": [
-              {
-                "condition": "template",
-                "value_template": "{{ not (is_state('sensor.aldes_pilot_rapport', 'online') and not state_attr('sensor.aldes_pilot_rapport', 'busy') and (state_attr('sensor.aldes_pilot_rapport', 'cooldown_s') | float(0)) <= 0 and (state_attr('sensor.aldes_pilot_rapport', 'recovery') or {}).get('status') != 'recovering') }}"
-              }
-            ],
-            "then": [
-              {
-                "stop": "Commande indisponible : attendre la fin de l’envoi, de la reprise ou du délai de 45 secondes.",
-                "error": true
-              }
-            ]
-          },
-          {
-            "action": "rest_command.aldes_pilot_setpoint",
-            "data": {
-              "zone": 5,
-              "temperature": "{{ value }}"
+        {
+          "name": "Aldes Pilot Consigne K5",
+          "unique_id": "aldes_pilot_rest_k5",
+          "availability": "{{ is_state('sensor.aldes_pilot_rapport', 'online') }}",
+          "optimistic": false,
+          "min": 0,
+          "max": 31,
+          "step": 0.5,
+          "unit_of_measurement": "°C",
+          "state": "{{ ((state_attr('sensor.aldes_pilot_rapport', 'zones') or {}).get('5') or {}).get('actual') }}",
+          "set_value": [
+            {
+              "if": [
+                {
+                  "condition": "template",
+                  "value_template": "{{ not (is_state('sensor.aldes_pilot_rapport', 'online') and not state_attr('sensor.aldes_pilot_rapport', 'busy') and (state_attr('sensor.aldes_pilot_rapport', 'cooldown_s') | float(0)) <= 0 and (state_attr('sensor.aldes_pilot_rapport', 'recovery') or {}).get('status') != 'recovering') }}"
+                }
+              ],
+              "then": [
+                {
+                  "stop": "Commande indisponible : attendre la fin de l’envoi, de la reprise ou du délai de 45 secondes.",
+                  "error": true
+                }
+              ]
             },
-            "response_variable": "reply"
-          },
-          {
-            "if": [
-              {
-                "condition": "template",
-                "value_template": "{{ reply.status != 200 or reply.content is not mapping or not reply.content.get('ok', false) }}"
+            {
+              "action": "rest_command.aldes_pilot_setpoint",
+              "data": {
+                "zone": 5,
+                "temperature": "{{ value }}"
+              },
+              "response_variable": "reply"
+            },
+            {
+              "if": [
+                {
+                  "condition": "template",
+                  "value_template": "{{ reply.status != 200 or reply.content is not mapping or not reply.content.get('ok', false) }}"
+                }
+              ],
+              "then": [
+                {
+                  "stop": "Commande refusée ou livraison non confirmée ; consulter Aldes Pilot.",
+                  "error": true
+                }
+              ]
+            },
+            {
+              "action": "homeassistant.update_entity",
+              "target": {
+                "entity_id": "sensor.aldes_pilot_rapport"
               }
-            ],
-            "then": [
-              {
-                "stop": "Commande refusée ou livraison non confirmée ; consulter Aldes Pilot.",
-                "error": true
-              }
-            ]
-          },
-          {
-            "action": "homeassistant.update_entity",
-            "target": {
-              "entity_id": "sensor.aldes_pilot_rapport"
             }
-          }
-        ]
+          ]
         },
         {
           "name": "Aldes Pilot Consigne K6",
           "unique_id": "aldes_pilot_rest_k6",
           "availability": "{{ is_state('sensor.aldes_pilot_rapport', 'online') }}",
           "optimistic": false,
-          "min": 16,
-          "max": 30,
+          "min": 0,
+          "max": 31,
           "step": 0.5,
           "unit_of_measurement": "°C",
           "state": "{{ ((state_attr('sensor.aldes_pilot_rapport', 'zones') or {}).get('6') or {}).get('actual') }}",
@@ -498,6 +499,62 @@
               }
             }
           ]
+        }
+      ],
+      "sensor": [
+        {
+          "name": "Aldes Pilot Température K1",
+          "unique_id": "aldes_pilot_rest_k1_temp",
+          "availability": "{{ is_state('sensor.aldes_pilot_rapport', 'online') }}",
+          "unit_of_measurement": "°C",
+          "device_class": "temperature",
+          "state_class": "measurement",
+          "state": "{{ ((state_attr('sensor.aldes_pilot_rapport', 'zones') or {}).get('1') or {}).get('temperature') }}"
+        },
+        {
+          "name": "Aldes Pilot Température K2",
+          "unique_id": "aldes_pilot_rest_k2_temp",
+          "availability": "{{ is_state('sensor.aldes_pilot_rapport', 'online') }}",
+          "unit_of_measurement": "°C",
+          "device_class": "temperature",
+          "state_class": "measurement",
+          "state": "{{ ((state_attr('sensor.aldes_pilot_rapport', 'zones') or {}).get('2') or {}).get('temperature') }}"
+        },
+        {
+          "name": "Aldes Pilot Température K3",
+          "unique_id": "aldes_pilot_rest_k3_temp",
+          "availability": "{{ is_state('sensor.aldes_pilot_rapport', 'online') }}",
+          "unit_of_measurement": "°C",
+          "device_class": "temperature",
+          "state_class": "measurement",
+          "state": "{{ ((state_attr('sensor.aldes_pilot_rapport', 'zones') or {}).get('3') or {}).get('temperature') }}"
+        },
+        {
+          "name": "Aldes Pilot Température K4",
+          "unique_id": "aldes_pilot_rest_k4_temp",
+          "availability": "{{ is_state('sensor.aldes_pilot_rapport', 'online') }}",
+          "unit_of_measurement": "°C",
+          "device_class": "temperature",
+          "state_class": "measurement",
+          "state": "{{ ((state_attr('sensor.aldes_pilot_rapport', 'zones') or {}).get('4') or {}).get('temperature') }}"
+        },
+        {
+          "name": "Aldes Pilot Température K5",
+          "unique_id": "aldes_pilot_rest_k5_temp",
+          "availability": "{{ is_state('sensor.aldes_pilot_rapport', 'online') }}",
+          "unit_of_measurement": "°C",
+          "device_class": "temperature",
+          "state_class": "measurement",
+          "state": "{{ ((state_attr('sensor.aldes_pilot_rapport', 'zones') or {}).get('5') or {}).get('temperature') }}"
+        },
+        {
+          "name": "Aldes Pilot Température K6",
+          "unique_id": "aldes_pilot_rest_k6_temp",
+          "availability": "{{ is_state('sensor.aldes_pilot_rapport', 'online') }}",
+          "unit_of_measurement": "°C",
+          "device_class": "temperature",
+          "state_class": "measurement",
+          "state": "{{ ((state_attr('sensor.aldes_pilot_rapport', 'zones') or {}).get('6') or {}).get('temperature') }}"
         }
       ],
       "binary_sensor": [

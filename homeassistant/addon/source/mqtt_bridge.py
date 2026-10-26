@@ -37,7 +37,7 @@ def parse_command(key,payload,retained=False):
   return '/api/'+key,{'mode':values.index(value)}
  if key in ('k1','k2','k3','k4','k5','k6'):
   v=float(value)
-  if not math.isfinite(v) or (v!=0 and not 16<=v<=30) or v*2!=int(v*2):raise ValueError('Invalid setpoint')
+  if not math.isfinite(v) or v*2!=int(v*2) or not (v==0 or 16<=v<=31):raise ValueError('Invalid setpoint')
   return '/api/setpoint',{'zone':int(key[1]),'temperature':v}
  if key=='vacation_clear' and value=='CLEAR':return '/api/vacation/clear',{}
  raise ValueError('Unknown command')

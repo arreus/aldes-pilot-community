@@ -13,7 +13,7 @@ class MQTTTests(unittest.TestCase):
   for i,label in enumerate(AIR):self.assertEqual(parse_command('air',label.encode()),('/api/air',{'mode':i}))
   for i,label in enumerate(ECS):self.assertEqual(parse_command('ecs',label.encode()),('/api/ecs',{'mode':i}))
  def test_refuse_retain_and_invalid(self):
-  for key,payload,retained in [('air',b'Arr\xc3\xaat',True),('k1',b'nan',False),('k2',b'31',False),('k3',b'20.1',False),('k7',b'22',False),('air',b'9',False),('vacation_clear',b'ON',False)]:
+  for key,payload,retained in [('air',b'Arr\xc3\xaat',True),('k1',b'nan',False),('k2',b'32',False),('k3',b'20.1',False),('k7',b'22',False),('air',b'9',False),('vacation_clear',b'ON',False)]:
    with self.assertRaises(ValueError):parse_command(key,payload,retained)
  def test_states_are_actual_only(self):
   s={'available':True,'air':{'actual':5,'requested':0},'ecs':{'actual':1},'zones':{str(z):{'actual':24 if z==1 else 22,'temperature':22.1} for z in range(1,7)},'hot_water_level':75,'offsets':{'offset_73':75,'offset_75':34,'offset_86':56}}
