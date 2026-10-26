@@ -232,8 +232,19 @@ ZONES.forEach(([z,n,k])=>{
   $('#s'+z).onclick=()=>sendSet(z);
 });
 
-function fmt(t){const [a,b]=t.toFixed(1).split('.');return `${a}<small>,${b} °C</small>`}
-function adj(z,d){const cur=local[z]??(S?.zones?.[z]?.actual??22);const v=Math.min(30,Math.max(16,Math.round((cur+d)*2)/2));local[z]=v;const n=$('#n'+z);n.innerHTML=fmt(v);n.classList.remove('bump');void n.offsetWidth;n.classList.add('bump');render()}
+function fmt(t){if(t===0)return 'Off';const [a,b]=t.toFixed(1).split('.');return `${a}<small>,${b} °C</small>`}
+function adj(z,d){
+  const cur=local[z]??(S?.zones?.[z]?.actual??22);
+  let v;
+  if(d < 0){
+    if(cur <= 16) v = 0;
+    else v = Math.min(30, Math.max(16, Math.round((cur + d) * 2) / 2));
+  } else {
+    if(cur < 16) v = 16;
+    else v = Math.min(30, Math.max(16, Math.round((cur + d) * 2) / 2));
+  }
+  local[z]=v;const n=$('#n'+z);n.innerHTML=fmt(v);n.classList.remove('bump');void n.offsetWidth;n.classList.add('bump');render();
+}
 
 function setSt(el,st,extra){el.className='st '+st.status;el.querySelector('span').textContent=(stTxt[st.status]||'')+(st.at&&st.status!=='idle'?' · '+hh(st.at):'')+(extra||'')}
 

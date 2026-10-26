@@ -1,5 +1,5 @@
 name: Aldes Pilot
-version: "0.2.7-dev3"
+version: "0.2.7-dev5"
 slug: aldes_pilot
 description: Bridge USB Pico W, lecture réelle et pilotage T.One AquaAIR (expérimental)
 url: https://github.com/kikisarem/aldes-pilot-community

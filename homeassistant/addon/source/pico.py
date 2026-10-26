@@ -67,7 +67,7 @@ def frame_setpoint(zone: int, temperature: float) -> bytes:
     if zone not in ZONES:
         raise ValueError('Zone inconnue')
     t = round(float(temperature) * 2) / 2
-    if not SETPOINT_MIN <= t <= SETPOINT_MAX:
+    if t != 0.0 and not (SETPOINT_MIN <= t <= SETPOINT_MAX):
         raise ValueError(f'Consigne hors plage {SETPOINT_MIN:g}–{SETPOINT_MAX:g} °C')
     f = _blank()
     off = 13 + 2 * (zone - 1)

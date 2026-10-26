@@ -11,7 +11,7 @@ def discovery(identity):
   rows.append(('select',key,{'name':'Mode '+key.upper(),'options':options,'optimistic':False}))
   for zone in range(1, 7):
    rows.append(('number', 'k' + str(zone),
-                {'name': f'Consigne K{zone}', 'min': 16, 'max': 30, 'step': .5, 'mode': 'box',
+                {'name': f'Consigne K{zone}', 'min': 2, 'max': 31, 'step': .5, 'mode': 'box',
                  'unit_of_measurement': '°C', 'optimistic': False}))
    rows.append(('sensor', f'k{zone}_temp',
                 {'name': f'Température K{zone}', 'unit_of_measurement': '°C', 'device_class': 'temperature',
@@ -37,7 +37,7 @@ def parse_command(key,payload,retained=False):
   return '/api/'+key,{'mode':values.index(value)}
  if key in ('k1','k2','k3','k4','k5','k6'):
   v=float(value)
-  if not math.isfinite(v) or not 16<=v<=30 or v*2!=int(v*2):raise ValueError('Invalid setpoint')
+  if not math.isfinite(v) or (v!=0 and not 16<=v<=30) or v*2!=int(v*2):raise ValueError('Invalid setpoint')
   return '/api/setpoint',{'zone':int(key[1]),'temperature':v}
  if key=='vacation_clear' and value=='CLEAR':return '/api/vacation/clear',{}
  raise ValueError('Unknown command')
