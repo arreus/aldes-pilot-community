@@ -63,7 +63,7 @@ def observed(s):
   out['hot_water_level'] = str(hw)
  offsets=s.get('offsets') or s.get('observation',{}).get('decoded',{}).get('offsets',{})
  if isinstance(offsets,dict):
-  for off in (73,86):
+  for off in (75,86):
    v=offsets.get(f'offset_{off}')
    if isinstance(v,int):
     out[f'offset_{off}']=str(v)
