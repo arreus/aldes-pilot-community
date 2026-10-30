@@ -1,7 +1,7 @@
 import tempfile,unittest,time,os
 from pathlib import Path
 from unittest.mock import patch
-from pico import Pilot,frame_vacation_clear,frame_air,frame_ecs
+from pico import Pilot,frame_vacation_clear,frame_air,frame_ecs,frame_setpoint
 from test_reader import chunk,status
 from readback import read_state
 
@@ -45,4 +45,38 @@ class IntegrationTests(unittest.TestCase):
    f=frame_air(mode);self.assertEqual(f[81],mode);self.assertEqual(f[5:13],b'\xff'*8);self.assertEqual(f[82],255);self.assertEqual(sum(f)%256,0)
   for mode in range(3):
    f=frame_ecs(mode);self.assertEqual(f[82],mode);self.assertEqual(f[81],255);self.assertEqual(sum(f)%256,0)
+
+ def test_setpoint_bounds_and_deduplication(self):
+  # Mode heating (1..4): 0 or 16..24
+  frame_setpoint(1, 0.0, air_mode=1)
+  frame_setpoint(1, 20.0, air_mode=1)
+  with self.assertRaises(ValueError): frame_setpoint(1, 25.0, air_mode=1)
+  with self.assertRaises(ValueError): frame_setpoint(1, 15.0, air_mode=1)
+
+  # Mode cooling (5..8): 0 or 22..31
+  frame_setpoint(1, 0.0, air_mode=5)
+  frame_setpoint(1, 25.0, air_mode=5)
+  with self.assertRaises(ValueError): frame_setpoint(1, 20.0, air_mode=5)
+  with self.assertRaises(ValueError): frame_setpoint(1, 32.0, air_mode=5)
+
+  # Mode off (0): 0 or 16..31
+  frame_setpoint(1, 0.0, air_mode=0)
+  frame_setpoint(1, 16.0, air_mode=0)
+  frame_setpoint(1, 31.0, air_mode=0)
+  with self.assertRaises(ValueError): frame_setpoint(1, 15.0, air_mode=0)
+
+  # Test Pilot.send deduplication and unread blocking
+  with tempfile.TemporaryDirectory() as d:
+   path = Path(d) / 'capture';
+   self.log(path, self.frame(air=1, ecs=1, k1=2200))
+   with patch('pico._find_capture', return_value=path), patch('pico.capture_health',
+                                                              return_value={'capture_age_s': 0.0, 'rx_ok': True}):
+    p = Pilot(Path(d) / 'private')
+    # Same value as actual -> ignored
+    r = p.send('setpoint', 22.0, zone=1)
+    self.assertEqual(r, {'ok': True, 'ignored': True})
+    r = p.send('air', 1)
+    self.assertEqual(r, {'ok': True, 'ignored': True})
+    r = p.send('ecs', 1)
+    self.assertEqual(r, {'ok': True, 'ignored': True})
 if __name__=='__main__':unittest.main()

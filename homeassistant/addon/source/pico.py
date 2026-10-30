@@ -44,7 +44,7 @@ AIR_MODES = {0: 'Arrêt', 1: 'Chauffage · Confort', 2: 'Chauffage · Éco',
              7: 'Clim · Programme C', 8: 'Clim · Programme D'}
 ECS_MODES = {0: 'Arrêt', 1: 'Marche', 2: 'Boost'}
 OFF_AIR, OFF_ECS = 81, 82
-SETPOINT_MIN, SETPOINT_MAX = 16.0, 30.0
+SETPOINT_MIN, SETPOINT_MAX = 16.0, 31.0
 
 
 def _seal(frame: bytearray) -> bytes:
@@ -62,13 +62,19 @@ def _blank() -> bytearray:
     f[OFF_ECS] = 0xFF
     return f
 
-
-def frame_setpoint(zone: int, temperature: float) -> bytes:
+def frame_setpoint(zone: int, temperature: float, air_mode: int | None = None) -> bytes:
     if zone not in ZONES:
         raise ValueError('Zone inconnue')
     t = round(float(temperature) * 2) / 2
-    if not SETPOINT_MIN <= t <= SETPOINT_MAX:
-        raise ValueError(f'Consigne hors plage {SETPOINT_MIN:g}–{SETPOINT_MAX:g} °C')
+    if air_mode in (1, 2, 3, 4):
+        if t != 0.0 and not (16.0 <= t <= 24.0):
+            raise ValueError('Consigne hors plage 16.0–24.0 °C (ou 0°C/off) en mode chauffage')
+    elif air_mode in (5, 6, 7, 8):
+        if t != 0.0 and not (22.0 <= t <= 31.0):
+            raise ValueError('Consigne hors plage 22.0–31.0 °C (ou 0°C/off) en mode clim')
+    else:
+        if t != 0.0 and not (16.0 <= t <= 31.0):
+            raise ValueError('Consigne hors plage 16.0–31.0 °C (ou 0°C/off)')
     f = _blank()
     off = 13 + 2 * (zone - 1)
     f[off:off + 2] = int(round(t * 100)).to_bytes(2, 'little')
@@ -263,7 +269,9 @@ class Pilot:
         observed = read_state(_find_capture())
         decoded = observed.get('decoded') or {}
         for z, item in zones.items():
-            item['actual'] = next((v['setpoint_c'] for v in decoded.get('zones', []) if v['zone'] == f'K{z}'), None)
+            zone_info = next((v for v in decoded.get('zones', []) if v['zone'] == f'K{z}'), {})
+            item['actual'] = zone_info.get('setpoint_c')
+            item['temperature'] = zone_info.get('temperature_candidate_c')
         air['actual'] = decoded.get('air', {}).get('raw')
         ecs['actual'] = decoded.get('ecs', {}).get('raw')
         for item in [*zones.values(), air, ecs]:
@@ -278,22 +286,12 @@ class Pilot:
             recovery = {k: recovery.get(k) for k in ('status', 'reason', 'last_action')}
         except (OSError, ValueError):
             recovery = {'status': 'watching'}
-        return {'recovery': recovery, 'zones': zones, 'air': air, 'ecs': ecs, 'busy': self.busy, 'available': available,
-                'observation': observed, 'observed': observed, 'vacation': decoded.get('vacation'), 'health': health, 'bench': bench, 'cooldown_s': max(0, int(self.cooldown - (time.time() - last_done))),
+        return {'recovery': recovery, 'zones': zones, 'air': air, 'ecs': ecs, 'hot_water_level': decoded.get('hot_water_level'), 'busy': self.busy, 'available': available,
+                'observation': observed, 'observed': observed, 'vacation': decoded.get('vacation'), 'offsets': decoded.get('offsets'), 'health': health, 'bench': bench, 'cooldown_s': max(0, int(self.cooldown - (time.time() - last_done))),
                 'labels': {'air': AIR_MODES, 'ecs': ECS_MODES}, 'dry_run': DRY_RUN,
                 'journal': self._records()[-12:]}
 
     def send(self, kind: str, value, zone: int | None = None) -> dict:
-        if kind == 'setpoint':
-            frame = frame_setpoint(zone, value); value = round(float(value) * 2) / 2
-        elif kind == 'air':
-            value = int(value); frame = frame_air(value)
-        elif kind == 'ecs':
-            value = int(value); frame = frame_ecs(value)
-        elif kind == 'vacation_clear':
-            value = 0; frame = frame_vacation_clear()
-        else:
-            raise ValueError('Commande inconnue')
         if not self.lock.acquire(blocking=False):
             return {'ok': False, 'error': 'Une commande est déjà en cours'}
         try:
@@ -307,6 +305,33 @@ class Pilot:
                     return {'ok': False, 'error': 'Reprise de lecture en cours'}
                 if not st['available']:
                     return {'ok': False, 'error': st['health'].get('error', 'Banc indisponible')}
+                if kind == 'setpoint':
+                    air_mode = st.get('air', {}).get('actual')
+                    if air_mode is None:
+                        return {'ok': False, 'error': 'Lecture de l\'état PAC indisponible'}
+                    frame = frame_setpoint(zone, value, air_mode=air_mode)
+                    value = round(float(value) * 2) / 2
+                    actual_val = st.get('zones', {}).get(zone, {}).get('actual')
+                elif kind == 'air':
+                    value = int(value)
+                    frame = frame_air(value)
+                    actual_val = st.get('air', {}).get('actual')
+                elif kind == 'ecs':
+                    value = int(value)
+                    frame = frame_ecs(value)
+                    actual_val = st.get('ecs', {}).get('actual')
+                elif kind == 'vacation_clear':
+                    value = 0
+                    frame = frame_vacation_clear()
+                    actual_val = None
+                else:
+                    raise ValueError('Commande inconnue')
+
+                if kind in ('setpoint', 'air', 'ecs'):
+                    if actual_val is None:
+                        return {'ok': False, 'error': 'Lecture de l\'état PAC indisponible'}
+                    if value == actual_val:
+                        return {'ok': True, 'ignored': True}
                 if st['cooldown_s']:
                     return {'ok': False, 'error': f"Observation en cours — {st['cooldown_s']} s"}
                 base = {'kind': kind, 'zone': zone, 'value': value}

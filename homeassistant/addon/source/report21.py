@@ -17,9 +17,10 @@ def decode21(data):
    'temperature_validation':'Layout candidate; physical zone/value confirmation pending'})
  return {'zones':zones,'air':{'raw':data[81],'label':AIR.get(data[81],'Mode non validé')},
   'ecs':{'raw':data[82],'label':ECS.get(data[82],'Mode non validé')},
-  'ecs_level':{'raw':data[73],'percent':data[73] if data[73]<=100 else None,
+  'hot_water_level':{'raw':data[73],'percent':data[73] if data[73]<=100 else None,
    'validation':'Reference installation: matches IHM 4-bar gauge (100/75/50/25, 24 = lowest step); nightly refill and Boost refill observed'},
   'vacation':{'departure':decode_date(data[5:9]),'return':decode_date(data[9:13]),'present':any(data[5:13])},
+  'offsets': {'offset_75': data[75], 'offset_86': data[86]},
   'frame_sha256':hashlib.sha256(data).hexdigest()}
 
 

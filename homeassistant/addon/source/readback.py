@@ -16,6 +16,7 @@ def read_state(path):
         page=data.get('pages',{}).get('21',{})
         return {'available':bool(page.get('available')), 'age_s':page.get('age_seconds'),
                 'uptime_ms':page.get('uptime_ms'), 'sha256':page.get('sha256'),
+                'raw': page.get('hex') if page.get('available') else None,
                 'decoded':page.get('decoded') if page.get('available') else None,
                 'reason':None if page.get('available') else 'Aucun rapport PAC récent et valide'}
     except (OSError,ValueError,KeyError) as exc:

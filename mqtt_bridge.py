@@ -9,12 +9,22 @@ def discovery(identity):
  rows=[]
  for key,options in [('air',AIR),('ecs',ECS)]:
   rows.append(('select',key,{'name':'Mode '+key.upper(),'options':options,'optimistic':False}))
- for zone in range(1,7):rows.append(('number','k'+str(zone),{'name':f'Consigne K{zone}','min':16,'max':30,'step':.5,'mode':'box','unit_of_measurement':'°C','optimistic':False}))
+  for zone in range(1, 7):
+   rows.append(('number', 'k' + str(zone),
+                {'name': f'Consigne K{zone}', 'min': 0, 'max': 31, 'step': .5, 'mode': 'box',
+                 'unit_of_measurement': '°C', 'optimistic': False}))
+   rows.append(('sensor', f'k{zone}_temp',
+                {'name': f'Température K{zone}', 'unit_of_measurement': '°C', 'device_class': 'temperature',
+                 'state_class': 'measurement'}))
+  rows.append(('sensor', 'hot_water_level', {'name': 'Niveau d\'eau chaude', 'unit_of_measurement': '%'}))
+  for off in (73, 86):
+   rows.append(('sensor', f'offset_{off}', {'name': f'Offset {off}'}))
  rows.append(('button','vacation_clear',{'name':'Annuler vacances / hors gel','payload_press':'CLEAR'}))
  result={}
  for component,key,extra in rows:
-  cfg={'unique_id':identity+'_'+key,'device':device,'availability_topic':base+'/availability','command_topic':base+'/'+key+'/set','qos':0,'retain':False,**extra}
+  cfg={'unique_id':identity+'_'+key,'device':device,'availability_topic':base+'/availability','qos':0,'retain':False,**extra}
   if component!='button':cfg['state_topic']=base+'/'+key+'/state'
+  if component in ('select','number','button'):cfg['command_topic']=base+'/'+key+'/set'
   result[f'homeassistant/{component}/{identity}/{key}/config']=cfg
  return result
 
@@ -27,7 +37,7 @@ def parse_command(key,payload,retained=False):
   return '/api/'+key,{'mode':values.index(value)}
  if key in ('k1','k2','k3','k4','k5','k6'):
   v=float(value)
-  if not math.isfinite(v) or not 16<=v<=30 or v*2!=int(v*2):raise ValueError('Invalid setpoint')
+  if not math.isfinite(v) or v*2!=int(v*2) or not (v==0 or 16<=v<=31):raise ValueError('Invalid setpoint')
   return '/api/setpoint',{'zone':int(key[1]),'temperature':v}
  if key=='vacation_clear' and value=='CLEAR':return '/api/vacation/clear',{}
  raise ValueError('Unknown command')
@@ -41,6 +51,22 @@ def observed(s):
   v=s['zones'][str(z)]['actual']
   if not isinstance(v,(int,float)) or not math.isfinite(v):return None
   out['k'+str(z)]=str(v)
+  t=s['zones'][str(z)].get('temperature')
+  if isinstance(t,(int,float)) and math.isfinite(t):
+   out['k'+str(z)+'_temp']=str(t)
+ hw = s.get('hot_water_level') if s.get('hot_water_level') is not None else s.get('observation', {}).get('decoded',
+                                                                                                         {}).get(
+  'hot_water_level')
+ if hw is None:
+  hw = (s.get('offsets') or s.get('observation', {}).get('decoded', {}).get('offsets', {}) or {}).get('offset_73')
+ if isinstance(hw, int):
+  out['hot_water_level'] = str(hw)
+ offsets=s.get('offsets') or s.get('observation',{}).get('decoded',{}).get('offsets',{})
+ if isinstance(offsets,dict):
+  for off in (75,86):
+   v=offsets.get(f'offset_{off}')
+   if isinstance(v,int):
+    out[f'offset_{off}']=str(v)
  return out
 
 def api(path,body=None):
